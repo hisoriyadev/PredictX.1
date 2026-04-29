@@ -37,12 +37,15 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+import fs from "fs";
+
 // ── Serve Frontend (Production / Render) ────────────────────
-// In production, Express serves the Vite-built dist/ folder.
 // The dist/ folder lives at the project root (one level above server/).
 const distPath = path.resolve(__dirname, "..", "dist");
 
-if (isProd) {
+if (fs.existsSync(distPath)) {
+  console.log(`✅ Found frontend build at: ${distPath}`);
+  
   // Serve static assets (JS, CSS, images, etc.)
   app.use(express.static(distPath));
 
@@ -51,9 +54,14 @@ if (isProd) {
     res.sendFile(path.join(distPath, "index.html"));
   });
 } else {
-  // In development, Vite dev server handles the frontend (port 5173)
-  app.get("/", (req, res) => {
-    res.json({ message: "PredictX API is running. Frontend is at http://localhost:5173 in dev mode." });
+  console.log(`⚠️ Frontend build not found at: ${distPath}`);
+  
+  app.get("*", (req, res) => {
+    res.status(404).send(`
+      <h2>PredictX API is running!</h2>
+      <p>But the frontend build was not found at <code>${distPath}</code>.</p>
+      <p>Make sure Render ran the build command: <code>npm run render:build</code></p>
+    `);
   });
 }
 
