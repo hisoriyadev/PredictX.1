@@ -16,12 +16,13 @@ import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const isProd = process.env.NODE_ENV === "production";
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// ── Routes ──────────────────────────────────────────────────
+// ── API Routes ──────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api", trendRoutes);
 app.use("/api/user", userRoutes);
@@ -32,27 +33,48 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     dbConnected: !!global.__dbConnected,
+    env: isProd ? "production" : "development",
   });
 });
+
+// ── Serve Frontend (Production / Render) ────────────────────
+// In production, Express serves the Vite-built dist/ folder.
+// The dist/ folder lives at the project root (one level above server/).
+const distPath = path.resolve(__dirname, "..", "dist");
+
+if (isProd) {
+  // Serve static assets (JS, CSS, images, etc.)
+  app.use(express.static(distPath));
+
+  // SPA fallback — any non-API route returns index.html
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  // In development, Vite dev server handles the frontend (port 5173)
+  app.get("/", (req, res) => {
+    res.json({ message: "PredictX API is running. Frontend is at http://localhost:5173 in dev mode." });
+  });
+}
 
 // ── Error Handler ───────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error("❌ Server Error:", err.message);
   res.status(err.status || 500).json({
     success: false,
-    error: process.env.NODE_ENV === "production" ? "Server error" : err.message,
+    error: isProd ? "Server error" : err.message,
   });
 });
 
 // ── Start ───────────────────────────────────────────────────
 const start = async () => {
-  // Connect to MongoDB (graceful fallback if not configured)
   global.__dbConnected = await connectDB();
 
   app.listen(PORT, () => {
-    console.log(`\n🚀 PredictX API server running at http://localhost:${PORT}`);
-    console.log(`📊 Database: ${global.__dbConnected ? "Connected" : "Not configured (running without DB)"}`);
-    console.log(`🔑 Auth: ${global.__dbConnected ? "Enabled" : "Disabled (no DB)"}`);
+    console.log(`\n🚀 PredictX running at http://localhost:${PORT}`);
+    console.log(`📊 Database: ${global.__dbConnected ? "Connected" : "Not configured"}`);
+    console.log(`🔑 Auth: ${global.__dbConnected ? "Enabled" : "Disabled"}`);
+    console.log(`🌐 Mode: ${isProd ? "Production (serving dist/)" : "Development"}`);
     console.log("");
   });
 };
