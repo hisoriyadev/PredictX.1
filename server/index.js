@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 // Load .env from project root
@@ -36,8 +37,6 @@ app.get("/api/health", (req, res) => {
     env: isProd ? "production" : "development",
   });
 });
-
-import fs from "fs";
 
 // ── Serve Frontend (Production / Render) ────────────────────
 // The dist/ folder lives at the project root (one level above server/).
